@@ -1,0 +1,6 @@
+{
+    find_program = {
+        xrepo = "/home/tom/.local/bin/xrepo",
+        ping = "/usr/bin/ping"
+    }
+}

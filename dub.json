@@ -1,0 +1,19 @@
+{
+	"authors": [
+		"tom"
+	],
+	"copyright": "Copyright © 2025, tom",
+	"description": "A minimal D application.",
+	"license": "proprietary",
+	"name": "raytracer",
+	"buildTypes": {
+		"final": {
+			"dflags-ldc": [
+				"-O3",
+				"-boundscheck=off",
+				"-release",
+				"-mcpu=native"
+			]
+		}
+	}
+}
