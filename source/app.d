@@ -10,10 +10,6 @@ import vec3;
 void main()
 {
 	GC.disable();
-	scope (exit)
-	{
-		GC.collect();
-	}
 
 	// World
 	Hittable_list world;
@@ -26,9 +22,9 @@ void main()
 
 	import std.random : uniform01;
 
-	foreach (a; -20 .. 20)
+	foreach (a; -12 .. 12)
 	{
-		foreach (b; -20 .. 20)
+		foreach (b; -12 .. 12)
 		{
 			const choose_mat = uniform01();
 			const center = Point3(a + 0.9 * uniform01(), 0.2, b + 0.9 * uniform01());
@@ -84,9 +80,9 @@ void main()
 
 	Camera cam;
 	cam.aspect_ratio = 16.0 / 9.0;
-	cam.image_width = 1200;
-	cam.samples_per_pixel = 50;
-	cam.max_depth = 30;
+	cam.image_width = 2000;
+	cam.samples_per_pixel = 100;
+	cam.max_depth = 50;
 	cam.vfov = 20;
 	cam.lookfrom = Point3(13, 2, 3);
 	cam.lookat = Point3(0, 0, 0);
@@ -282,7 +278,6 @@ bool scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, out Ray sca
 	{
 		return dielectric_scatter(r_in, rec, attenuation, scattered);
 	}
-
 	return false;
 }
 
@@ -379,7 +374,6 @@ struct Interval
 			return max;
 		return x;
 	}
-
 }
 
 double degrees_to_radians(double degrees)
@@ -481,7 +475,7 @@ struct Camera
 		foreach (j; iota(image_height).parallel)
 		{
 			Colour[] row = new Colour[](image_width);
-			foreach (i; iota(image_width).parallel)
+			foreach (i; 0..image_width)
 			{
 				const pixel_colour = iota(samples_per_pixel)
 					.fold!((a, e) => a + ray_color(get_ray(i, j), max_depth, world))(
@@ -493,6 +487,16 @@ struct Camera
 			atomicOp!"+="(doneRows, 1);
 		}
 
+		write_out_pixels(pixels);
+
+		progressThread.join();
+		stderr.write(
+			"\rDone.                   \n");
+		stderr.flush();
+	}
+
+	void write_out_pixels(in Colour[][] pixels)
+	{
 		writef("P3\n%s %s\n255\n", image_width, image_height);
 		foreach (row; pixels)
 		{
@@ -501,10 +505,6 @@ struct Camera
 				write_colour(pixel);
 			}
 		}
-		progressThread.join();
-		stderr.write(
-			"\rDone.                   \n");
-		stderr.flush();
 	}
 
 	Ray get_ray(int i, int j) const

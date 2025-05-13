@@ -55,7 +55,7 @@ struct Vec3
 	}
 
 	ref Vec3 opOpAssign(string op)(Vec3 rhs)
-			if (op == "+" || op == "-" || op == "*" || op == "/")
+	if (op == "+" || op == "-" || op == "*" || op == "/")
 	{
 		mixin("x ", op, "= rhs.x");
 		mixin("y ", op, "= rhs.y");
@@ -64,7 +64,7 @@ struct Vec3
 	}
 
 	ref Vec3 opOpAssign(string op)(double scalar)
-			if (op == "+" || op == "-" || op == "*" || op == "/")
+	if (op == "+" || op == "-" || op == "*" || op == "/")
 	{
 		mixin("x ", op, "= scalar");
 		mixin("y ", op, "= scalar");
@@ -86,13 +86,13 @@ struct Vec3
 	Vec3 opBinary(string op)(double scalar) const
 	if (op == "+" || op == "-" || op == "*" || op == "/")
 	{
-		return mixin("Vec3(scalar ", op, " x, scalar ", op, " y, scalar ", op, " z)");
+		return mixin("Vec3(x ", op, " scalar, y ", op, " scalar, z ", op, " scalar)");
 	}
 
 	Vec3 opBinaryRight(string op : "*")(double scalar) const
 	if (op == "+" || op == "-" || op == "*" || op == "/")
 	{
-		return mixin("Vec3(x ", op, " scalar, y ", op, "  scalar, z ", op, " scalar)");
+		return this.opBinary!op(scalar);
 	}
 
 	double length() const
@@ -201,5 +201,86 @@ Vec3 random_in_unit_disk()
 		const p = Vec3(uniform(-1.0, 1.0), uniform(-1.0, 1.0), 0);
 		if (p.length_squared() < 1)
 			return p;
+	}
+}
+
+unittest
+{
+	import std.math : abs, approxEqual;
+
+	Vec3 a = Vec3(1, 2, 3);
+	Vec3 b = Vec3(4, 5, 6);
+
+	// Constructor & accessors
+	assert(a.r == 1);
+	assert(a.g == 2);
+	assert(a.b == 3);
+
+	// Copy constructor
+	const c = Vec3(a);
+	assert(c.x == a.x && c.y == a.y && c.z == a.z);
+
+	// Operator overloads (vec3)
+	assert((a + b).toString() == "5 7 9");
+	assert((b - a).toString() == "3 3 3");
+	assert((a * b).toString() == "4 10 18");
+	assert((b / a).toString() == "4 2.5 2");
+
+	// Operator overloads (scalar)
+	assert((a * 2).toString() == "2 4 6");
+	assert((2 * a).toString() == "2 4 6");
+	assert((a / 2).toString() == "0.5 1 1.5");
+
+	// Unary
+	assert((-a).toString() == "-1 -2 -3");
+
+	// Length
+	assert(approxEqual(a.length, 3.74165, 1e-5));
+	assert(a.length_squared == 14);
+
+	// near_zero
+	assert(!a.near_zero);
+	assert(Vec3(1e-9, 0, 0).near_zero);
+
+	// dot
+	assert(dot(a, b) == 32);
+
+	// cross
+	const cr = cross(a, b);
+	assert(cr.toString() == "-3 6 -3");
+
+	// reflect
+	const r = reflect(Vec3(1, -1, 0), Vec3(0, 1, 0));
+	assert(r.toString() == "1 1 0");
+
+	// refract sanity check
+	const refracted = refract(Vec3(1, 1, 0), Vec3(0, 1, 0), 1.0 / 1.5);
+	assert(refracted.length <= 1); // should not exceed unit length
+
+	// unit_vector
+	const u = unit_vector(Vec3(3, 0, 0));
+	assert(u.toString() == "1 0 0");
+
+	// random_unit_vector
+	foreach (i; 0 .. 5)
+	{
+		const v = random_unit_vector();
+		assert(approxEqual(v.length, 1, 1e-8));
+	}
+
+	// random_on_hemisphere
+	foreach (i; 0 .. 5)
+	{
+		const n = Vec3(0, 1, 0);
+		const v = random_on_hemisphere(n);
+		assert(dot(v, n) >= 0);
+	}
+
+	// random_in_unit_disk
+	foreach (i; 0 .. 5)
+	{
+		const v = random_in_unit_disk();
+		assert(v.z == 0);
+		assert(v.length_squared < 1);
 	}
 }

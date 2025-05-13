@@ -6,14 +6,4 @@
 	"description": "A minimal D application.",
 	"license": "proprietary",
 	"name": "raytracer",
-	"buildTypes": {
-		"final": {
-			"dflags-ldc": [
-				"-O3",
-				"-boundscheck=off",
-				"-release",
-				"-mcpu=native"
-			]
-		}
-	}
 }
