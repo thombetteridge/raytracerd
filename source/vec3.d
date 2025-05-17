@@ -157,10 +157,8 @@ Vec3 refract(in Vec3 a, in Vec3 b, double etai_over_etat) pure
 	import std.math : sqrt, abs;
 
 	const cos_theta = min(dot(-a, b), 1.0);
-	const r_out_perp = etai_over_etat * (
-		a + cos_theta * b);
-	const r_out_parallel = -sqrt(
-		(1.0 - r_out_perp.length_squared).abs) * b;
+	const r_out_perp = etai_over_etat * (a + cos_theta * b);
+	const r_out_parallel = -sqrt((1.0 - r_out_perp.length_squared).abs) * b;
 	return r_out_perp + r_out_parallel;
 }
 
@@ -172,7 +170,9 @@ Vec3 random_in_unit_disk() pure
 
 		const p = Vec3(uniform(-1.0, 1.0), uniform(-1.0, 1.0), 0);
 		if (p.length_squared() < 1)
+		{
 			return p;
+		}
 	}
 }
 
