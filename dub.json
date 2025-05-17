@@ -6,4 +6,15 @@
 	"description": "A minimal D application.",
 	"license": "proprietary",
 	"name": "raytracer",
+	"buildTypes": {
+		"release-maxspeed": {
+			"dflags-ldc": [
+				"-O3",
+				"-release",
+				"-boundscheck=off",
+				"-ffast-math",
+				"-mcpu=native"
+			]
+		}
+	}
 }

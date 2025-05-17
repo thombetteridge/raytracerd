@@ -6,7 +6,8 @@ import core.memory;
 
 import vec3;
 
-// Main
+@safe
+
 void main()
 {
 	GC.disable();
@@ -80,7 +81,7 @@ void main()
 
 	Camera cam;
 	cam.aspect_ratio = 16.0 / 9.0;
-	cam.image_width = 2000;
+	cam.image_width = 1200;
 	cam.samples_per_pixel = 100;
 	cam.max_depth = 50;
 	cam.vfov = 20;
@@ -152,6 +153,7 @@ struct Hit_record
 }
 
 // Shape Structs
+
 struct Sphere
 {
 	Point3 center;
@@ -475,10 +477,10 @@ struct Camera
 		foreach (j; iota(image_height).parallel)
 		{
 			Colour[] row = new Colour[](image_width);
-			foreach (i; 0..image_width)
+			foreach (i; 0 .. image_width)
 			{
 				const pixel_colour = iota(samples_per_pixel)
-					.fold!((a, e) => a + ray_color(get_ray(i, j), max_depth, world))(
+					.fold!((result, e) => result + ray_color(get_ray(i, j), max_depth, world))(
 					Colour(0, 0, 0));
 
 				row[i] = pixel_colour * pixel_samples_scale;
@@ -513,10 +515,8 @@ struct Camera
 		// point around the pixel location i, j.
 
 		const offset = sample_square();
-		const pixel_sample = pixel00_loc
-			+ ((i + offset.x) * pixel_delta_u)
-			+ (
-				(j + offset.y) * pixel_delta_v);
+		const pixel_sample = pixel00_loc + ((i + offset.x) * pixel_delta_u) + (
+			(j + offset.y) * pixel_delta_v);
 
 		const ray_origin = (defocus_angle <= 0) ? center : defocus_disk_sample();
 		const ray_direction = pixel_sample - ray_origin;
@@ -541,7 +541,7 @@ struct Camera
 
 	Colour ray_color(in Ray r, int depth, in Hittable_list world)
 	{
-		if (depth <= 0)
+		if (depth == 0)
 		{
 			return Colour(0, 0, 0);
 		}
