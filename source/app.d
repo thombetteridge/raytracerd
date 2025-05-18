@@ -6,8 +6,6 @@ import core.memory;
 
 import vec3;
 
-@safe
-
 void main()
 {
 	GC.disable();
@@ -93,7 +91,7 @@ void main()
 	cam.render(world);
 }
 
-double linear_to_gamma(double linear_component)
+float linear_to_gamma(float linear_component)
 {
 	if (linear_component < 0)
 	{
@@ -126,7 +124,7 @@ struct Ray
 		this.direction = Vec3(direction);
 	}
 
-	Point3 at(double t) const
+	Point3 at(float t) const
 	{
 		return origin + (direction * t);
 	}
@@ -137,12 +135,12 @@ struct Hit_record
 {
 	Point3 p;
 	Vec3 normal;
-	MaterialType mat;
 	Colour albedo;
-	double refraction_index;
-	double t;
+	float refraction_index;
+	float t;
+	MaterialType mat;
 	bool front_face;
-	bool valid; // Indicates if the hit is valid
+	bool valid;
 
 	void set_face_normal(Ray r, Vec3 outward_normal)
 	{
@@ -157,12 +155,12 @@ struct Hit_record
 struct Sphere
 {
 	Point3 center;
-	double radius;
-	MaterialType mat;
 	Colour albedo;
-	double refraction_index;
+	float radius;
+	float refraction_index;
+	MaterialType mat;
 
-	this(Point3 center, double radius)
+	this(Point3 center, float radius)
 	{
 		import std.algorithm : max;
 
@@ -184,7 +182,7 @@ struct Sphere
 		}
 
 		const sqrtd = sqrt(discriminant);
-		double root = (h - sqrtd) / a;
+		float root = (h - sqrtd) / a;
 		if (!ray_t.surrounds(root))
 		{
 			root = (h + sqrtd) / a;
@@ -331,7 +329,7 @@ bool dielectric_scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, 
 	return true;
 }
 
-double reflectance(double cosine, double refraction_index)
+float reflectance(float cosine, float refraction_index)
 {
 	import std.math : pow;
 
@@ -344,31 +342,31 @@ double reflectance(double cosine, double refraction_index)
 
 struct Interval
 {
-	double min = double.infinity;
-	double max = -double.infinity;
+	float min = float.infinity;
+	float max = -float.infinity;
 
-	this(double min, double max)
+	this(float min, float max)
 	{
 		this.min = min;
 		this.max = max;
 	}
 
-	double size() const
+	float size() const
 	{
 		return max - min;
 	}
 
-	bool contains(double x) const
+	bool contains(float x) const
 	{
 		return min <= x && x <= max;
 	}
 
-	bool surrounds(double x) const
+	bool surrounds(float x) const
 	{
 		return min < x && x < max;
 	}
 
-	double clamp(double x) const
+	float clamp(float x) const
 	{
 		if (x < min)
 			return min;
@@ -378,7 +376,7 @@ struct Interval
 	}
 }
 
-double degrees_to_radians(double degrees)
+float degrees_to_radians(float degrees)
 {
 	//import std.math : pi;
 
@@ -386,26 +384,26 @@ double degrees_to_radians(double degrees)
 	return degrees * pi_180;
 }
 
-const empty = Interval(+double.infinity, -double.infinity);
-const universe = Interval(-double.infinity, +double.infinity);
+const empty = Interval(+float.infinity, -float.infinity);
+const universe = Interval(-float.infinity, +float.infinity);
 
 struct Camera
 {
-	double aspect_ratio = 1.0; // Ratio of image width over height
+	float aspect_ratio = 1.0; // Ratio of image width over height
 	int image_width = 100; // Rendered image width in pixel count
 	int samples_per_pixel = 10; // Count of random samples for each pixel
 	int max_depth = 10; // Maximum number of ray bounces into scene
 
-	double vfov = 90; // Vertical view angle (field of view)
+	float vfov = 90; // Vertical view angle (field of view)
 	Point3 lookfrom = Point3(0, 0, 0); // Point camera is looking from
 	Point3 lookat = Point3(0, 0, -1); // Point camera is looking at
 	Vec3 vup = Vec3(0, 1, 0); // Camera-relative "up" direction
 
-	double defocus_angle = 0; // Variation angle of rays through each pixel
-	double focus_dist = 10; // Distance from camera lookfrom point to plane of perfect focus
+	float defocus_angle = 0; // Variation angle of rays through each pixel
+	float focus_dist = 10; // Distance from camera lookfrom point to plane of perfect focus
 
 	int image_height; // Rendered image height
-	double pixel_samples_scale; // Color scale factor for a sum of pixel samples
+	float pixel_samples_scale; // Color scale factor for a sum of pixel samples
 	Point3 center; // Camera center
 	Point3 pixel00_loc; // Location of pixel 0, 0
 	Vec3 pixel_delta_u; // Offset to pixel to the right
@@ -423,7 +421,7 @@ struct Camera
 		const theta = degrees_to_radians(vfov);
 		const h = tan(theta / 2.0);
 		const viewport_height = 2.0 * h * focus_dist;
-		const viewport_width = viewport_height * (to!double(image_width) / image_height);
+		const viewport_width = viewport_height * (to!float(image_width) / image_height);
 
 		// Calculate the u,v,w unit basis vectors for the camera coordinate frame.
 		w = unit_vector(lookfrom - lookat);
@@ -545,7 +543,7 @@ struct Camera
 		{
 			return Colour(0, 0, 0);
 		}
-		auto rec = world.hit(r, Interval(0.001, double.infinity));
+		auto rec = world.hit(r, Interval(0.001, float.infinity));
 		if (rec.valid)
 		{
 			Ray scattered;

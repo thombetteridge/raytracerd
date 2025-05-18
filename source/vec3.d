@@ -1,9 +1,9 @@
 // Vec3, Point3, Colour
 struct Vec3
 {
-	double x, y, z;
+	float x, y, z;
 
-	this(double x_, double y_, double z_)
+	this(float x_, float y_, float z_)
 	{
 		this.x = x_;
 		this.y = y_;
@@ -32,7 +32,7 @@ struct Vec3
 		return format("%s %s %s", x, y, z);
 	}
 
-	ref Vec3 opOpAssign(string op)(Vec3 rhs)
+	ref Vec3 opOpAssign(string op)(in Vec3 rhs)
 			if (op == "+" || op == "-" || op == "*" || op == "/")
 	{
 		mixin("x ", op, "= rhs.x");
@@ -41,7 +41,7 @@ struct Vec3
 		return this;
 	}
 
-	ref Vec3 opOpAssign(string op)(double scalar)
+	ref Vec3 opOpAssign(string op)(float scalar)
 			if (op == "+" || op == "-" || op == "*" || op == "/")
 	{
 		mixin("x ", op, "= scalar");
@@ -61,19 +61,19 @@ struct Vec3
 		return mixin(" Vec3( this.x ", op, " rhs.x, this.y ", op, " rhs.y, this.z ", op, " rhs.z)");
 	}
 
-	Vec3 opBinary(string op)(double scalar) const
+	Vec3 opBinary(string op)(float scalar) const
 	if (op == "+" || op == "-" || op == "*" || op == "/")
 	{
 		return mixin("Vec3(x ", op, " scalar, y ", op, " scalar, z ", op, " scalar)");
 	}
 
-	Vec3 opBinaryRight(string op : "*")(double scalar) const
+	Vec3 opBinaryRight(string op : "*")(float scalar) const
 	if (op == "+" || op == "-" || op == "*" || op == "/")
 	{
 		return this.opBinary!op(scalar);
 	}
 
-	double length() const
+	float length() const
 	{
 		import std.math : sqrt;
 
@@ -88,19 +88,19 @@ struct Vec3
 		import std.math : abs;
 
 		// Return true if the vector is close to zero in all dimensions.
-		static const double s = 1e-8;
+		static const float s = 1e-8;
 		return (x.abs < s) && (y.abs < s) && (z.abs < s);
 	}
 }
 
-Vec3 vec3_random() pure
+Vec3 vec3_random()
 {
 	import std.random : uniform01;
 
 	return Vec3(uniform01, uniform01, uniform01);
 }
 
-Vec3 vec3_random(double min, double max) pure
+Vec3 vec3_random(float min, float max)
 {
 	import std.random : uniform;
 
@@ -110,12 +110,12 @@ Vec3 vec3_random(double min, double max) pure
 alias Point3 = Vec3;
 alias Colour = Vec3;
 
-Vec3 unit_vector(Vec3 v) pure
+Vec3 unit_vector(Vec3 v)
 {
 	return v / v.length;
 }
 
-Vec3 random_unit_vector() pure
+Vec3 random_unit_vector()
 {
 	import std.math : sqrt;
 
@@ -128,7 +128,7 @@ Vec3 random_unit_vector() pure
 	}
 }
 
-Vec3 random_on_hemisphere(in Vec3 normal) pure
+Vec3 random_on_hemisphere(in Vec3 normal)
 {
 	auto on_unit_sphere = random_unit_vector();
 	if (dot(on_unit_sphere, normal) > 0.0) // In the same hemisphere as the normal
@@ -137,10 +137,10 @@ Vec3 random_on_hemisphere(in Vec3 normal) pure
 		return -on_unit_sphere;
 }
 
-double dot(in Vec3 a, in Vec3 b) pure
+float dot(in Vec3 a, in Vec3 b) pure
 	=> a.x * b.x + a.y * b.y + a.z * b.z;
 
-Vec3 cross(in Vec3 a, in Vec3 b) pure
+Vec3 cross(in Vec3 a, in Vec3 b)
 {
 	return Vec3(
 		a.y * b.z - a.z * b.y,
@@ -148,10 +148,10 @@ Vec3 cross(in Vec3 a, in Vec3 b) pure
 		a.x * b.y - a.y * b.x);
 }
 
-Vec3 reflect(in Vec3 a, in Vec3 b) pure
+Vec3 reflect(in Vec3 a, in Vec3 b)
 	=> a - 2 * dot(a, b) * b;
 
-Vec3 refract(in Vec3 a, in Vec3 b, double etai_over_etat) pure
+Vec3 refract(in Vec3 a, in Vec3 b, float etai_over_etat)
 {
 	import std.algorithm : min;
 	import std.math : sqrt, abs;
@@ -162,7 +162,7 @@ Vec3 refract(in Vec3 a, in Vec3 b, double etai_over_etat) pure
 	return r_out_perp + r_out_parallel;
 }
 
-Vec3 random_in_unit_disk() pure
+Vec3 random_in_unit_disk()
 {
 	while (true)
 	{
