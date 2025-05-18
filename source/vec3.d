@@ -95,7 +95,7 @@ struct Vec3
 		return this.opBinary!op(scalar);
 	}
 
-	float length() const
+	auto length() const
 	{
 		import std.math : sqrt;
 
@@ -161,7 +161,7 @@ Vec3 random_on_hemisphere(in Vec3 normal)
 		return -on_unit_sphere;
 }
 
-float dot(in Vec3 a, in Vec3 b) pure
+auto dot(in Vec3 a, in Vec3 b) pure
 {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
