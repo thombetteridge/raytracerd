@@ -121,7 +121,7 @@ Vec3 vec3_random()
 {
 	import std.random : uniform01;
 
-	return Vec3(uniform01, uniform01, uniform01);
+	return Vec3(uniform01!float, uniform01!float, uniform01!float);
 }
 
 Vec3 vec3_random(float min, float max)

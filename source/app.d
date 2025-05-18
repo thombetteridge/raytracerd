@@ -317,7 +317,7 @@ bool dielectric_scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, 
 	const cannot_refract = ri * sin_theta > 1.0;
 
 	Vec3 direction;
-	if (cannot_refract || reflectance(cos_theta, ri) > uniform01)
+	if (cannot_refract || reflectance(cos_theta, ri) > uniform01!float)
 	{
 		direction = reflect(unit_direction, rec.normal);
 	}
