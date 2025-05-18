@@ -17,13 +17,35 @@ struct Vec3
 		this.z = rhs.z;
 	}
 
-	auto ref r() => x;
-	auto ref g() => y;
-	auto ref b() => z;
+	auto ref r()
+	{
+		return x;
+	}
 
-	auto r() const => x;
-	auto g() const => y;
-	auto b() const => z;
+	auto ref g()
+	{
+		return y;
+	}
+
+	auto ref b()
+	{
+		return z;
+	}
+
+	auto r() const
+	{
+		return x;
+	}
+
+	auto g() const
+	{
+		return y;
+	}
+
+	auto b() const
+	{
+		return z;
+	}
 
 	string toString() const
 	{
@@ -81,7 +103,9 @@ struct Vec3
 	}
 
 	auto length_squared() const
-		=> x * x + y * y + z * z;
+	{
+		return x * x + y * y + z * z;
+	}
 
 	bool near_zero() const
 	{
@@ -138,7 +162,9 @@ Vec3 random_on_hemisphere(in Vec3 normal)
 }
 
 float dot(in Vec3 a, in Vec3 b) pure
-	=> a.x * b.x + a.y * b.y + a.z * b.z;
+{
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
 
 Vec3 cross(in Vec3 a, in Vec3 b)
 {
@@ -149,7 +175,9 @@ Vec3 cross(in Vec3 a, in Vec3 b)
 }
 
 Vec3 reflect(in Vec3 a, in Vec3 b)
-	=> a - 2 * dot(a, b) * b;
+{
+	return a - 2 * dot(a, b) * b;
+}
 
 Vec3 refract(in Vec3 a, in Vec3 b, float etai_over_etat)
 {
