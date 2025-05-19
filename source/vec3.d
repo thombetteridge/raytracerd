@@ -17,35 +17,12 @@ struct Vec3
 		this.z = rhs.z;
 	}
 
-	auto ref r()
-	{
-		return x;
-	}
-
-	auto ref g()
-	{
-		return y;
-	}
-
-	auto ref b()
-	{
-		return z;
-	}
-
-	auto r() const
-	{
-		return x;
-	}
-
-	auto g() const
-	{
-		return y;
-	}
-
-	auto b() const
-	{
-		return z;
-	}
+	auto ref r() => x;
+	auto ref g() => y;
+	auto ref b() => z;
+	auto r() const => x;
+	auto g() const => y;
+	auto b() const => z;
 
 	string toString() const
 	{
@@ -55,7 +32,7 @@ struct Vec3
 	}
 
 	ref Vec3 opOpAssign(string op)(in Vec3 rhs)
-			if (op == "+" || op == "-" || op == "*" || op == "/")
+	if (op == "+" || op == "-" || op == "*" || op == "/")
 	{
 		mixin("x ", op, "= rhs.x");
 		mixin("y ", op, "= rhs.y");
@@ -64,7 +41,7 @@ struct Vec3
 	}
 
 	ref Vec3 opOpAssign(string op)(float scalar)
-			if (op == "+" || op == "-" || op == "*" || op == "/")
+	if (op == "+" || op == "-" || op == "*" || op == "/")
 	{
 		mixin("x ", op, "= scalar");
 		mixin("y ", op, "= scalar");
@@ -77,7 +54,7 @@ struct Vec3
 		return Vec3(-x, -y, -z);
 	}
 
-	Vec3 opBinary(string op)(Vec3 rhs) const
+	Vec3 opBinary(string op)(in Vec3 rhs) const
 	if (op == "+" || op == "-" || op == "*" || op == "/")
 	{
 		return mixin(" Vec3( this.x ", op, " rhs.x, this.y ", op, " rhs.y, this.z ", op, " rhs.z)");
@@ -134,7 +111,7 @@ Vec3 vec3_random(float min, float max)
 alias Point3 = Vec3;
 alias Colour = Vec3;
 
-Vec3 unit_vector(Vec3 v)
+Vec3 unit_vector(in Vec3 v)
 {
 	return v / v.length;
 }
