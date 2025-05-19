@@ -100,7 +100,7 @@ float linear_to_gamma(float linear_component)
 	return linear_component.sqrt;
 }
 
-void write_colour(Colour pixel_colour)
+void write_colour(in Colour pixel_colour)
 {
 	static const intensity = Interval(0.000, 0.999);
 	const r = linear_to_gamma(pixel_colour.r);
@@ -118,7 +118,7 @@ struct Ray
 {
 	Point3 origin;
 	Vec3 direction;
-	this(Point3 origin, Vec3 direction)
+	this(in Point3 origin, in Vec3 direction)
 	{
 		this.origin = Point3(origin);
 		this.direction = Vec3(direction);
@@ -142,7 +142,7 @@ struct Hit_record
 	bool front_face;
 	bool valid;
 
-	void set_face_normal(Ray r, Vec3 outward_normal)
+	void set_face_normal(in Ray r, in Vec3 outward_normal)
 	{
 		front_face = dot(r.direction, outward_normal) < 0;
 		normal = front_face ? outward_normal : -outward_normal;
@@ -160,7 +160,7 @@ struct Sphere
 	float refraction_index;
 	MaterialType mat;
 
-	this(Point3 center, float radius)
+	this(in Point3 center, float radius)
 	{
 		import std.algorithm : max;
 
@@ -168,7 +168,7 @@ struct Sphere
 		this.radius = max(0, radius);
 	}
 
-	Hit_record hit(Ray r, Interval ray_t) const
+	Hit_record hit(in Ray r, in Interval ray_t) const
 	{
 		const oc = center - r.origin;
 		const a = r.direction.length_squared;
@@ -211,7 +211,7 @@ struct Hittable(T)
 		shape = s;
 	}
 
-	Hit_record hit(Ray r, Interval ray_t) const
+	Hit_record hit(in Ray r, in Interval ray_t) const
 	{
 		return shape.hit(r, ray_t);
 	}
@@ -239,7 +239,7 @@ struct Hittable_list
 		spheres.length = 0;
 	}
 
-	Hit_record hit(Ray r, Interval ray_t) const
+	Hit_record hit(in Ray r, in Interval ray_t) const
 	{
 		Hit_record closest_rec;
 		Interval current_t = ray_t;
@@ -249,7 +249,7 @@ struct Hittable_list
 			auto temp_rec = s.hit(r, current_t);
 			if (temp_rec.valid)
 			{
-				current_t.max = temp_rec.t; // Restrict to closer hits
+				current_t.max = temp_rec.t;
 				closest_rec = temp_rec;
 			}
 		}
@@ -475,11 +475,13 @@ struct Camera
 		foreach (j; iota(image_height).parallel)
 		{
 			Colour[] row = new Colour[](image_width);
+			const local_max_depth = max_depth;
+			const local_world = world;
 			foreach (i; 0 .. image_width)
 			{
 				const pixel_colour = iota(samples_per_pixel)
-					.fold!((result, e) => result + ray_color(get_ray(i, j), max_depth, world))(
-					Colour(0, 0, 0));
+					.fold!((result, e) => result + ray_color(get_ray(i, j), local_max_depth, local_world))(
+						Colour(0, 0, 0));
 
 				row[i] = pixel_colour * pixel_samples_scale;
 			}
@@ -490,8 +492,7 @@ struct Camera
 		write_out_pixels(pixels);
 
 		progressThread.join();
-		stderr.write(
-			"\rDone.                   \n");
+		stderr.write("\rDone.                   \n");
 		stderr.flush();
 	}
 
@@ -556,7 +557,7 @@ struct Camera
 			return Colour(0, 0, 0);
 		}
 		const unit_direction = unit_vector(r.direction);
-		auto a = 0.5 * (unit_direction.y + 1.0);
+		const a = 0.5 * (unit_direction.y + 1.0);
 		return Colour(1.0, 1.0, 1.0) * (1.0 - a) + Colour(0.5, 0.7, 1.0) * a;
 	}
 }
