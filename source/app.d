@@ -6,8 +6,7 @@ import core.memory;
 
 import vec3;
 
-void main()
-{
+void main() {
 	GC.disable();
 
 	// World
@@ -21,17 +20,13 @@ void main()
 
 	import std.random : uniform01;
 
-	foreach (a; -12 .. 12)
-	{
-		foreach (b; -12 .. 12)
-		{
+	foreach (a; -12 .. 12) {
+		foreach (b; -12 .. 12) {
 			const choose_mat = uniform01();
 			const center = Point3(a + 0.9 * uniform01(), 0.2, b + 0.9 * uniform01());
 
-			if ((center - Point3(4, 0.2, 0)).length > 0.9)
-			{
-				if (choose_mat < 0.8)
-				{
+			if ((center - Point3(4, 0.2, 0)).length > 0.9) {
+				if (choose_mat < 0.5) {
 					// diffuse
 					auto sphere = Sphere(center, 0.2);
 					sphere.mat = MaterialType.lambertian;
@@ -39,17 +34,16 @@ void main()
 
 					world.add(sphere);
 				}
-				else if (choose_mat < 0.95)
-				{
+				else if (choose_mat < 0.95) {
 					// metal
 					auto sphere = Sphere(center, 0.2);
 					sphere.mat = MaterialType.metal;
-					sphere.albedo = vec3_random(0.5, 1);
+					sphere.albedo = vec3_random(0.5, 1.0);
+					//sphere.albedo = Colour(0.7, 0.6, 0.5);
 
 					world.add(sphere);
 				}
-				else
-				{
+				else {
 					// glass
 					auto sphere = Sphere(center, 0.2);
 					sphere.mat = MaterialType.dielectric;
@@ -79,8 +73,8 @@ void main()
 
 	Camera cam;
 	cam.aspect_ratio = 16.0 / 9.0;
-	cam.image_width = 1600;
-	cam.samples_per_pixel = 100;
+	cam.image_width = 400;
+	cam.samples_per_pixel = 50;
 	cam.max_depth = 50;
 	cam.vfov = 20;
 	cam.lookfrom = Point3(13, 2, 3);
@@ -91,17 +85,80 @@ void main()
 	cam.render(world);
 }
 
-float linear_to_gamma(float linear_component)
-{
-	if (linear_component < 0)
-	{
+float linear_to_gamma(float linear_component) {
+	if (linear_component < 0) {
 		return 0;
 	}
 	return linear_component.sqrt;
 }
 
-void write_colour(in Colour pixel_colour)
-{
+void write_bmp(string filename, Colour[][] pixels) {
+	import std.bitmanip;
+	import std.file;
+	import std.algorithm : clamp, min;
+	import std.conv;
+
+	immutable width = pixels[0].length;
+	immutable height = pixels.length;
+
+	immutable row_padding = (4 - (width * 3) % 4) % 4;
+	immutable row_size = width * 3 + row_padding;
+	immutable pixel_data_size = row_size * height;
+	immutable file_size = 54 + pixel_data_size;
+
+	// BMP Header (14 bytes)
+	ubyte[14] header;
+	//header.length = 14;
+	header[0 .. 2] = cast(ubyte[])("BM"); // Signature
+	header[2 .. 6] = nativeToLittleEndian(to!uint(file_size)); // File size
+	header[10 .. 14] = nativeToLittleEndian(to!uint(54)); // Pixel data offset
+
+	// DIB Header (40 bytes)
+	ubyte[40] dib;
+	//dib.length = 40;
+	dib[0 .. 4] = nativeToLittleEndian(to!uint(40)); // DIB header size
+	dib[4 .. 8] = nativeToLittleEndian(to!int(width));
+	dib[8 .. 12] = nativeToLittleEndian(to!int(height));
+	dib[12 .. 14] = nativeToLittleEndian(to!ushort(1)); // Color planes
+	dib[14 .. 16] = nativeToLittleEndian(to!ushort(24)); // Bits per pixel
+	dib[20 .. 24] = nativeToLittleEndian(to!uint(pixel_data_size)); // Image size
+
+	// Build pixel data (BMP stores bottom to top)
+	scope pixel_data = new ubyte[](pixel_data_size);
+	//pixel_data.length = pixel_data_size;
+
+	foreach (y; 0 .. height) {
+		const row = pixels[height - 1 - y]; // BMP is bottom-up
+		foreach (x; 0 .. width) {
+			const c = row[x];
+			const r = to!ubyte((255.999f * linear_to_gamma(c.r)
+					.clamp(0.0f, 0.999f))
+					.min(255.0f));
+			const g = to!ubyte((255.999f * linear_to_gamma(c.g)
+					.clamp(0.0f, 0.999f))
+					.min(255.0f));
+			const b = to!ubyte((255.999f * linear_to_gamma(c.b)
+					.clamp(0.0f, 0.999f))
+					.min(255.0f));
+
+			immutable i = y * row_size + x * 3;
+			pixel_data[i + 0] = b;
+			pixel_data[i + 1] = g;
+			pixel_data[i + 2] = r;
+		}
+
+		// padding
+		foreach (p; 0 .. row_padding) {
+			pixel_data[y * row_size + width * 3 + p] = 0;
+		}
+	}
+
+	// Write to file
+	auto bmp = header ~ dib ~ pixel_data;
+	write(filename, bmp);
+}
+
+void write_colour(in Colour pixel_colour) {
 	static const intensity = Interval(0.000, 0.999);
 	const r = linear_to_gamma(pixel_colour.r);
 	const g = linear_to_gamma(pixel_colour.g);
@@ -114,25 +171,21 @@ void write_colour(in Colour pixel_colour)
 }
 
 // Ray
-struct Ray
-{
+struct Ray {
 	Point3 origin;
 	Vec3 direction;
-	this(in Point3 origin, in Vec3 direction)
-	{
+	this(in Point3 origin, in Vec3 direction) {
 		this.origin = Point3(origin);
 		this.direction = Vec3(direction);
 	}
 
-	Point3 at(float t) const
-	{
+	Point3 at(float t) const {
 		return origin + (direction * t);
 	}
 }
 
 // Hit_record
-struct Hit_record
-{
+struct Hit_record {
 	Point3 p;
 	Vec3 normal;
 	Colour albedo;
@@ -142,8 +195,7 @@ struct Hit_record
 	bool front_face;
 	bool valid;
 
-	void set_face_normal(in Ray r, in Vec3 outward_normal)
-	{
+	void set_face_normal(in Ray r, in Vec3 outward_normal) {
 		front_face = dot(r.direction, outward_normal) < 0;
 		normal = front_face ? outward_normal : -outward_normal;
 		valid = true;
@@ -152,39 +204,34 @@ struct Hit_record
 
 // Shape Structs
 
-struct Sphere
-{
+struct Sphere {
 	Point3 center;
 	Colour albedo;
 	float radius;
 	float refraction_index;
 	MaterialType mat;
 
-	this(in Point3 center, float radius)
-	{
+	this(in Point3 center, float radius) {
 		import std.algorithm : max;
 
 		this.center = center;
 		this.radius = max(0, radius);
 	}
 
-	Hit_record hit(in Ray r, in Interval ray_t) const
-	{
+	Hit_record hit(in Ray r, in Interval ray_t) const {
 		const oc = center - r.origin;
 		const a = r.direction.length_squared;
 		const h = dot(r.direction, oc);
 		const c = oc.length_squared - radius * radius;
 
 		const discriminant = h * h - a * c;
-		if (discriminant < 0)
-		{
+		if (discriminant < 0) {
 			return Hit_record(); // valid = false
 		}
 
 		const sqrtd = sqrt(discriminant);
 		float root = (h - sqrtd) / a;
-		if (!ray_t.surrounds(root))
-		{
+		if (!ray_t.surrounds(root)) {
 			root = (h + sqrtd) / a;
 			if (!ray_t.surrounds(root))
 				return Hit_record();
@@ -203,52 +250,41 @@ struct Sphere
 }
 
 // Hittable Template
-struct Hittable(T)
-{
+struct Hittable(T) {
 	T shape;
-	this(T s)
-	{
+	this(T s) {
 		shape = s;
 	}
 
-	Hit_record hit(in Ray r, in Interval ray_t) const
-	{
+	Hit_record hit(in Ray r, in Interval ray_t) const {
 		return shape.hit(r, ray_t);
 	}
 }
 
 // Hittable_list
-struct Hittable_list
-{
+struct Hittable_list {
 	Hittable!Sphere[] spheres;
 
-	void add(T)(T object)
-	{
-		static if (is(T == Sphere))
-		{
+	void add(T)(T object) {
+		static if (is(T == Sphere)) {
 			spheres ~= Hittable!Sphere(object);
 		}
-		else
-		{
+		else {
 			static assert(false, "Unsupported shape type: " ~ T.stringof);
 		}
 	}
 
-	void clear()
-	{
+	void clear() {
 		spheres.length = 0;
 	}
 
-	Hit_record hit(in Ray r, in Interval ray_t) const
-	{
+	Hit_record hit(in Ray r, in Interval ray_t) const {
 		Hit_record closest_rec;
 		Interval current_t = ray_t;
 
-		foreach (ref s; spheres)
-		{
+		foreach (ref s; spheres) {
 			auto temp_rec = s.hit(r, current_t);
-			if (temp_rec.valid)
-			{
+			if (temp_rec.valid) {
 				current_t.max = temp_rec.t;
 				closest_rec = temp_rec;
 			}
@@ -257,35 +293,28 @@ struct Hittable_list
 	}
 }
 
-enum MaterialType : ubyte
-{
+enum MaterialType : ubyte {
 	lambertian,
 	metal,
 	dielectric
 }
 
-bool scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, out Ray scattered)
-{
-	if (rec.mat == MaterialType.lambertian)
-	{
+bool scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, out Ray scattered) {
+	if (rec.mat == MaterialType.lambertian) {
 		return lambertian_scatter(r_in, rec, attenuation, scattered);
 	}
-	else if (rec.mat == MaterialType.metal)
-	{
+	else if (rec.mat == MaterialType.metal) {
 		return metal_scatter(r_in, rec, attenuation, scattered);
 	}
-	else if (rec.mat == MaterialType.dielectric)
-	{
+	else if (rec.mat == MaterialType.dielectric) {
 		return dielectric_scatter(r_in, rec, attenuation, scattered);
 	}
 	return false;
 }
 
-bool lambertian_scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, out Ray scattered)
-{
+bool lambertian_scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, out Ray scattered) {
 	auto scatter_direction = rec.normal + random_unit_vector();
-	if (scatter_direction.near_zero)
-	{
+	if (scatter_direction.near_zero) {
 		scatter_direction = rec.normal;
 	}
 	scattered = Ray(rec.p, scatter_direction);
@@ -293,16 +322,14 @@ bool lambertian_scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, 
 	return true;
 }
 
-bool metal_scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, out Ray scattered)
-{
+bool metal_scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, out Ray scattered) {
 	const reflected = reflect(r_in.direction, rec.normal);
 	scattered = Ray(rec.p, reflected);
 	attenuation = rec.albedo;
 	return true;
 }
 
-bool dielectric_scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, out Ray scattered)
-{
+bool dielectric_scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, out Ray scattered) {
 	import std.algorithm : min;
 	import std.random : uniform01;
 
@@ -317,20 +344,17 @@ bool dielectric_scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, 
 	const cannot_refract = ri * sin_theta > 1.0;
 
 	Vec3 direction;
-	if (cannot_refract || reflectance(cos_theta, ri) > uniform01!float)
-	{
+	if (cannot_refract || reflectance(cos_theta, ri) > uniform01!float) {
 		direction = reflect(unit_direction, rec.normal);
 	}
-	else
-	{
+	else {
 		direction = refract(unit_direction, rec.normal, ri);
 	}
 	scattered = Ray(rec.p, direction);
 	return true;
 }
 
-float reflectance(float cosine, float refraction_index)
-{
+float reflectance(float cosine, float refraction_index) {
 	import std.math : pow;
 
 	// Use Schlick's approximation for reflectance.
@@ -340,34 +364,28 @@ float reflectance(float cosine, float refraction_index)
 	return r0 + (1 - r0) * pow((1 - cosine), 5);
 }
 
-struct Interval
-{
+struct Interval {
 	float min = float.infinity;
 	float max = -float.infinity;
 
-	this(float min, float max)
-	{
+	this(float min, float max) {
 		this.min = min;
 		this.max = max;
 	}
 
-	float size() const
-	{
+	float size() const {
 		return max - min;
 	}
 
-	bool contains(float x) const
-	{
+	bool contains(float x) const {
 		return min <= x && x <= max;
 	}
 
-	bool surrounds(float x) const
-	{
+	bool surrounds(float x) const {
 		return min < x && x < max;
 	}
 
-	float clamp(float x) const
-	{
+	float clamp(float x) const {
 		if (x < min)
 			return min;
 		if (x > max)
@@ -376,8 +394,7 @@ struct Interval
 	}
 }
 
-float degrees_to_radians(float degrees)
-{
+float degrees_to_radians(float degrees) {
 	//import std.math : pi;
 
 	static pi_180 = PI / 180.0;
@@ -387,8 +404,7 @@ float degrees_to_radians(float degrees)
 const empty = Interval(+float.infinity, -float.infinity);
 const universe = Interval(-float.infinity, +float.infinity);
 
-struct Camera
-{
+struct Camera {
 	float aspect_ratio = 1.0; // Ratio of image width over height
 	int image_width = 100; // Rendered image width in pixel count
 	int samples_per_pixel = 10; // Count of random samples for each pixel
@@ -412,8 +428,7 @@ struct Camera
 	Vec3 defocus_disk_u; // Defocus disk horizontal radius
 	Vec3 defocus_disk_v; // Defocus disk vertical radius
 
-	void initialize()
-	{
+	void initialize() {
 		image_height = to!int(image_width / aspect_ratio);
 		pixel_samples_scale = 1.0 / samples_per_pixel;
 		center = lookfrom;
@@ -443,8 +458,7 @@ struct Camera
 		defocus_disk_v = v * defocus_radius;
 	}
 
-	void render(in Hittable_list world)
-	{
+	void render(in Hittable_list world) {
 		import std.range : iota;
 		import std.algorithm : fold;
 		import std.parallelism : parallel;
@@ -457,13 +471,11 @@ struct Camera
 		immutable totalRows = image_height;
 
 		auto progressThread = new Thread({
-			while (true)
-			{
+			while (true) {
 				int current = atomicLoad(doneRows);
 				stderr.writef("\rProgress: %d%%", cast(int)((cast(float) current / totalRows) * 100));
 				stderr.flush();
-				if (current >= totalRows)
-				{
+				if (current >= totalRows) {
 					break;
 				}
 				Thread.sleep(500.msecs);
@@ -472,15 +484,11 @@ struct Camera
 		progressThread.start();
 
 		auto pixels = new Colour[][](image_height);
-		foreach (j; iota(image_height).parallel)
-		{
+		foreach (j; iota(image_height).parallel) {
 			Colour[] row = new Colour[](image_width);
-			const local_max_depth = max_depth;
-			const local_world = world;
-			foreach (i; 0 .. image_width)
-			{
+			foreach (i; iota(image_width).parallel) {
 				const pixel_colour = iota(samples_per_pixel)
-					.fold!((result, e) => result + ray_color(get_ray(i, j), local_max_depth, local_world))(
+					.fold!((result, e) => result + ray_color(get_ray(i, j), max_depth, world))(
 						Colour(0, 0, 0));
 
 				row[i] = pixel_colour * pixel_samples_scale;
@@ -489,27 +497,23 @@ struct Camera
 			atomicOp!"+="(doneRows, 1);
 		}
 
-		write_out_pixels(pixels);
-
+		//write_out_pixels(pixels);
+		write_bmp("output.bmp", pixels); // Save BMP
 		progressThread.join();
 		stderr.write("\rDone.                   \n");
 		stderr.flush();
 	}
 
-	void write_out_pixels(in Colour[][] pixels)
-	{
+	void write_out_pixels(in Colour[][] pixels) {
 		writef("P3\n%s %s\n255\n", image_width, image_height);
-		foreach (row; pixels)
-		{
-			foreach (pixel; row)
-			{
+		foreach (row; pixels) {
+			foreach (pixel; row) {
 				write_colour(pixel);
 			}
 		}
 	}
 
-	Ray get_ray(int i, int j) const
-	{
+	Ray get_ray(int i, int j) const {
 		// Construct a camera ray originating from the origin and directed at randomly sampled
 		// point around the pixel location i, j.
 
@@ -523,35 +527,29 @@ struct Camera
 		return Ray(ray_origin, ray_direction);
 	}
 
-	Point3 defocus_disk_sample() const
-	{
+	Point3 defocus_disk_sample() const {
 		// Returns a random point in the camera defocus disk.
 		auto p = random_in_unit_disk();
 		return center + (p.x * defocus_disk_u) + (p.y * defocus_disk_v);
 	}
 
-	Vec3 sample_square() const
-	{
+	Vec3 sample_square() const {
 		import std.random : uniform01;
 
 		// Returns the vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square.
 		return Vec3(uniform01 - 0.5, uniform01 - 0.5, 0);
 	}
 
-	Colour ray_color(in Ray r, int depth, in Hittable_list world)
-	{
-		if (depth == 0)
-		{
+	Colour ray_color(in Ray r, int depth, in Hittable_list world) {
+		if (depth == 0) {
 			return Colour(0, 0, 0);
 		}
 		auto rec = world.hit(r, Interval(0.001, float.infinity));
-		if (rec.valid)
-		{
+		if (rec.valid) {
 			Ray scattered;
 			Colour attenuation;
 
-			if (scatter(r, rec, attenuation, scattered))
-			{
+			if (scatter(r, rec, attenuation, scattered)) {
 				return attenuation * ray_color(scattered, depth - 1, world);
 			}
 			return Colour(0, 0, 0);
