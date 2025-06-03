@@ -73,7 +73,7 @@ void main() {
 
 	Camera cam;
 	cam.aspect_ratio = 16.0 / 9.0;
-	cam.image_width = 400;
+	cam.image_width = 4000;
 	cam.samples_per_pixel = 50;
 	cam.max_depth = 50;
 	cam.vfov = 20;
@@ -300,16 +300,16 @@ enum MaterialType : ubyte {
 }
 
 bool scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, out Ray scattered) {
-	if (rec.mat == MaterialType.lambertian) {
+	switch (rec.mat) with (MaterialType) {
+	case lambertian:
 		return lambertian_scatter(r_in, rec, attenuation, scattered);
-	}
-	else if (rec.mat == MaterialType.metal) {
+	case metal:
 		return metal_scatter(r_in, rec, attenuation, scattered);
-	}
-	else if (rec.mat == MaterialType.dielectric) {
+	case dielectric:
 		return dielectric_scatter(r_in, rec, attenuation, scattered);
+	default:
+		return false;
 	}
-	return false;
 }
 
 bool lambertian_scatter(in Ray r_in, in Hit_record rec, out Colour attenuation, out Ray scattered) {
@@ -395,9 +395,7 @@ struct Interval {
 }
 
 float degrees_to_radians(float degrees) {
-	//import std.math : pi;
-
-	static pi_180 = PI / 180.0;
+	enum pi_180 = PI / 180.0;
 	return degrees * pi_180;
 }
 
@@ -473,7 +471,8 @@ struct Camera {
 		auto progressThread = new Thread({
 			while (true) {
 				int current = atomicLoad(doneRows);
-				stderr.writef("\rProgress: %d%%", cast(int)((cast(float) current / totalRows) * 100));
+				stderr.writef("\rProgress: %d%%", cast(int)(
+					(cast(float)current / totalRows) * 100));
 				stderr.flush();
 				if (current >= totalRows) {
 					break;
@@ -519,7 +518,7 @@ struct Camera {
 
 		const offset = sample_square();
 		const pixel_sample = pixel00_loc + ((i + offset.x) * pixel_delta_u) + (
-			(j + offset.y) * pixel_delta_v);
+				(j + offset.y) * pixel_delta_v);
 
 		const ray_origin = (defocus_angle <= 0) ? center : defocus_disk_sample();
 		const ray_direction = pixel_sample - ray_origin;
