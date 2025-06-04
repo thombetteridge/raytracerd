@@ -6,6 +6,48 @@ import core.memory;
 
 import vec3;
 
+enum float ASPECT_RATIO = 16.0 / 9.0; // Ratio of image width over height
+enum int IMAGE_WIDTH = 4000; // Rendered image width in pixel count
+enum int SAMPLES_PER_PIXEL = 50; // Count of random samples for each pixel
+enum int MAX_DEPTH = 20; // Maximum number of ray bounces into scene
+
+enum float VFOV = 30; // Vertical view angle (field of view)
+enum Point3 LOOKFROM = Point3(13, 2, 3); // Point camera is looking from
+enum Point3 LOOKAT = Point3(0, 0, 0); // Point camera is looking at
+enum Vec3 VUP = Vec3(0, 1, 0); // Camera-relative "up" direction
+
+enum float DEFOCUS_ANGLE = 0.6; // Variation angle of rays through each pixel
+enum float FOCUS_DIST = 10.0; // Distance from camera LOOKFROM point to plane of perfect focus
+
+enum int IMAGE_HEIGHT = to!int(IMAGE_WIDTH / ASPECT_RATIO); // Rendered image height
+enum float PIXEL_SAMPLES_SCALE = 1.0 / SAMPLES_PER_PIXEL; // Color scale factor for a sum of pixel samples
+enum Point3 CENTER = LOOKFROM; // Camera center
+enum Vec3 PIXEL_DELTA_U = VIEWPORT_U / IMAGE_WIDTH; // Offset to pixel to the right
+enum Vec3 PIXEL_DELTA_V = VIEWPORT_V / IMAGE_HEIGHT; // Offset to pixel below
+enum Point3 PIXEL00_LOC = VIEWPORT_UPPER_LEFT + (PIXEL_DELTA_U + PIXEL_DELTA_V) * 0.5; // Location of pixel 0, 0
+// Camera frame basis vectors
+enum Vec3 W = unit_vector(LOOKFROM - LOOKAT);
+enum Vec3 U = unit_vector(cross(VUP, W));
+enum Vec3 V = cross(W, U); // Calculate the vectors across the horizontal and down the vertical viewport edges.
+enum DEFOCUS_RADIUS = FOCUS_DIST * tan(degrees_to_radians(DEFOCUS_ANGLE / 2.0));
+enum Vec3 DEFOCUS_DISK_U = U * DEFOCUS_RADIUS; // Defocus disk horizontal radius
+enum Vec3 DEFOCUS_DISK_V = V * DEFOCUS_RADIUS; // Defocus disk vertical radius
+enum VIEWPORT_UPPER_LEFT = CENTER - (FOCUS_DIST * W) - VIEWPORT_U / 2.0 - VIEWPORT_V / 2.0;
+
+enum VIEWPORT_U = VIEWPORT_WIDTH * U; // Vector across viewport horizontal edge
+enum VIEWPORT_V = VIEWPORT_HEIGHT * -V; // Vector down viewport vertical edge
+
+enum THETA = degrees_to_radians(VFOV);
+enum H = tan(THETA / 2.0);
+enum VIEWPORT_HEIGHT = 2.0 * H * FOCUS_DIST;
+enum VIEWPORT_WIDTH = VIEWPORT_HEIGHT * (to!float(IMAGE_WIDTH) / IMAGE_HEIGHT);
+
+// Calculate the u,v,w unit basis vectors for the camera coordinate frame.
+
+// Calculate the location of the upper left pixel.
+
+// Calculate the camera defocus disk basis vectors.
+
 void main() {
 	GC.disable();
 
@@ -72,16 +114,7 @@ void main() {
 	world.add(sphere_3);
 
 	Camera cam;
-	cam.aspect_ratio = 16.0 / 9.0;
-	cam.image_width = 4000;
-	cam.samples_per_pixel = 50;
-	cam.max_depth = 50;
-	cam.vfov = 20;
-	cam.lookfrom = Point3(13, 2, 3);
-	cam.lookat = Point3(0, 0, 0);
-	cam.vup = Vec3(0, 1, 0);
-	cam.defocus_angle = 0.6;
-	cam.focus_dist = 10.0;
+
 	cam.render(world);
 }
 
@@ -221,18 +254,18 @@ struct Sphere {
 	Hit_record hit(in Ray r, in Interval ray_t) const {
 		const oc = center - r.origin;
 		const a = r.direction.length_squared;
-		const h = dot(r.direction, oc);
+		const H = dot(r.direction, oc);
 		const c = oc.length_squared - radius * radius;
 
-		const discriminant = h * h - a * c;
+		const discriminant = H * H - a * c;
 		if (discriminant < 0) {
 			return Hit_record(); // valid = false
 		}
 
 		const sqrtd = sqrt(discriminant);
-		float root = (h - sqrtd) / a;
+		float root = (H - sqrtd) / a;
 		if (!ray_t.surrounds(root)) {
-			root = (h + sqrtd) / a;
+			root = (H + sqrtd) / a;
 			if (!ray_t.surrounds(root))
 				return Hit_record();
 		}
@@ -403,58 +436,6 @@ const empty = Interval(+float.infinity, -float.infinity);
 const universe = Interval(-float.infinity, +float.infinity);
 
 struct Camera {
-	float aspect_ratio = 1.0; // Ratio of image width over height
-	int image_width = 100; // Rendered image width in pixel count
-	int samples_per_pixel = 10; // Count of random samples for each pixel
-	int max_depth = 10; // Maximum number of ray bounces into scene
-
-	float vfov = 90; // Vertical view angle (field of view)
-	Point3 lookfrom = Point3(0, 0, 0); // Point camera is looking from
-	Point3 lookat = Point3(0, 0, -1); // Point camera is looking at
-	Vec3 vup = Vec3(0, 1, 0); // Camera-relative "up" direction
-
-	float defocus_angle = 0; // Variation angle of rays through each pixel
-	float focus_dist = 10; // Distance from camera lookfrom point to plane of perfect focus
-
-	int image_height; // Rendered image height
-	float pixel_samples_scale; // Color scale factor for a sum of pixel samples
-	Point3 center; // Camera center
-	Point3 pixel00_loc; // Location of pixel 0, 0
-	Vec3 pixel_delta_u; // Offset to pixel to the right
-	Vec3 pixel_delta_v; // Offset to pixel below
-	Vec3 u, v, w; // Camera frame basis vectors
-	Vec3 defocus_disk_u; // Defocus disk horizontal radius
-	Vec3 defocus_disk_v; // Defocus disk vertical radius
-
-	void initialize() {
-		image_height = to!int(image_width / aspect_ratio);
-		pixel_samples_scale = 1.0 / samples_per_pixel;
-		center = lookfrom;
-
-		const theta = degrees_to_radians(vfov);
-		const h = tan(theta / 2.0);
-		const viewport_height = 2.0 * h * focus_dist;
-		const viewport_width = viewport_height * (to!float(image_width) / image_height);
-
-		// Calculate the u,v,w unit basis vectors for the camera coordinate frame.
-		w = unit_vector(lookfrom - lookat);
-		u = unit_vector(cross(vup, w));
-		v = cross(w, u); // Calculate the vectors across the horizontal and down the vertical viewport edges.
-		const viewport_u = viewport_width * u; // Vector across viewport horizontal edge
-		const viewport_v = viewport_height * -v; // Vector down viewport vertical edge
-
-		pixel_delta_u = viewport_u / image_width;
-		pixel_delta_v = viewport_v / image_height;
-
-		// Calculate the location of the upper left pixel.
-		const viewport_upper_left = center - (focus_dist * w) - viewport_u / 2.0 - viewport_v / 2.0;
-		pixel00_loc = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5;
-
-		// Calculate the camera defocus disk basis vectors.
-		const defocus_radius = focus_dist * tan(degrees_to_radians(defocus_angle / 2.0));
-		defocus_disk_u = u * defocus_radius;
-		defocus_disk_v = v * defocus_radius;
-	}
 
 	void render(in Hittable_list world) {
 		import std.range : iota;
@@ -463,16 +444,14 @@ struct Camera {
 		import core.thread;
 		import core.atomic;
 
-		initialize();
-
 		shared int doneRows;
-		immutable totalRows = image_height;
+		immutable totalRows = IMAGE_HEIGHT;
 
 		auto progressThread = new Thread({
 			while (true) {
 				int current = atomicLoad(doneRows);
-				stderr.writef("\rProgress: %d%%", cast(int)(
-					(cast(float)current / totalRows) * 100));
+				stderr.writef("\rProgress: %d%%", std.conv.to!int(
+					(std.conv.to!float(current) / totalRows) * 100));
 				stderr.flush();
 				if (current >= totalRows) {
 					break;
@@ -482,15 +461,15 @@ struct Camera {
 		});
 		progressThread.start();
 
-		auto pixels = new Colour[][](image_height);
-		foreach (j; iota(image_height).parallel) {
-			Colour[] row = new Colour[](image_width);
-			foreach (i; iota(image_width).parallel) {
-				const pixel_colour = iota(samples_per_pixel)
-					.fold!((result, e) => result + ray_color(get_ray(i, j), max_depth, world))(
+		auto pixels = new Colour[][](IMAGE_HEIGHT);
+		foreach (j; iota(IMAGE_HEIGHT).parallel) {
+			Colour[] row = new Colour[](IMAGE_WIDTH);
+			foreach (i; iota(IMAGE_WIDTH).parallel) {
+				const pixel_colour = iota(SAMPLES_PER_PIXEL)
+					.fold!((result, e) => result + ray_color(get_ray(i, j), MAX_DEPTH, world))(
 						Colour(0, 0, 0));
 
-				row[i] = pixel_colour * pixel_samples_scale;
+				row[i] = pixel_colour * PIXEL_SAMPLES_SCALE;
 			}
 			pixels[j] = row;
 			atomicOp!"+="(doneRows, 1);
@@ -504,7 +483,7 @@ struct Camera {
 	}
 
 	void write_out_pixels(in Colour[][] pixels) {
-		writef("P3\n%s %s\n255\n", image_width, image_height);
+		writef("P3\n%s %s\n255\n", IMAGE_WIDTH, IMAGE_HEIGHT);
 		foreach (row; pixels) {
 			foreach (pixel; row) {
 				write_colour(pixel);
@@ -517,10 +496,10 @@ struct Camera {
 		// point around the pixel location i, j.
 
 		const offset = sample_square();
-		const pixel_sample = pixel00_loc + ((i + offset.x) * pixel_delta_u) + (
-				(j + offset.y) * pixel_delta_v);
+		const pixel_sample = PIXEL00_LOC + ((i + offset.x) * PIXEL_DELTA_U) + (
+				(j + offset.y) * PIXEL_DELTA_V);
 
-		const ray_origin = (defocus_angle <= 0) ? center : defocus_disk_sample();
+		const ray_origin = (DEFOCUS_ANGLE <= 0) ? CENTER : defocus_disk_sample();
 		const ray_direction = pixel_sample - ray_origin;
 
 		return Ray(ray_origin, ray_direction);
@@ -529,7 +508,7 @@ struct Camera {
 	Point3 defocus_disk_sample() const {
 		// Returns a random point in the camera defocus disk.
 		auto p = random_in_unit_disk();
-		return center + (p.x * defocus_disk_u) + (p.y * defocus_disk_v);
+		return CENTER + (p.x * DEFOCUS_DISK_U) + (p.y * DEFOCUS_DISK_V);
 	}
 
 	Vec3 sample_square() const {

@@ -14,3 +14,4 @@ raytracer-test-*
 *.o
 *.obj
 *.lst
+*.bmp
