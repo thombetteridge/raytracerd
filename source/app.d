@@ -1,13 +1,12 @@
 import std.stdio;
 import std.conv;
 import std.math;
-
 import core.memory;
 
 import vec3;
 
 enum float ASPECT_RATIO = 16.0 / 9.0; // Ratio of image width over height
-enum int IMAGE_WIDTH = 4000; // Rendered image width in pixel count
+enum int IMAGE_WIDTH = 400; // Rendered image width in pixel count
 enum int SAMPLES_PER_PIXEL = 50; // Count of random samples for each pixel
 enum int MAX_DEPTH = 20; // Maximum number of ray bounces into scene
 
@@ -42,12 +41,6 @@ enum H = tan(THETA / 2.0);
 enum VIEWPORT_HEIGHT = 2.0 * H * FOCUS_DIST;
 enum VIEWPORT_WIDTH = VIEWPORT_HEIGHT * (to!float(IMAGE_WIDTH) / IMAGE_HEIGHT);
 
-// Calculate the u,v,w unit basis vectors for the camera coordinate frame.
-
-// Calculate the location of the upper left pixel.
-
-// Calculate the camera defocus disk basis vectors.
-
 void main() {
 	GC.disable();
 
@@ -59,7 +52,6 @@ void main() {
 	ground.albedo = Colour(0.5, 0.5, 0.5);
 
 	world.add(ground);
-
 	import std.random : uniform01;
 
 	foreach (a; -12 .. 12) {
@@ -114,7 +106,6 @@ void main() {
 	world.add(sphere_3);
 
 	Camera cam;
-
 	cam.render(world);
 }
 
@@ -158,26 +149,25 @@ void write_bmp(string filename, Colour[][] pixels) {
 
 	// Build pixel data (BMP stores bottom to top)
 	scope pixel_data = new ubyte[](pixel_data_size);
-	//pixel_data.length = pixel_data_size;
 
 	foreach (y; 0 .. height) {
 		const row = pixels[height - 1 - y]; // BMP is bottom-up
 		foreach (x; 0 .. width) {
+			enum intensity = Interval(0.000, 0.999);
+
 			const c = row[x];
-			const r = to!ubyte((255.999f * linear_to_gamma(c.r)
-					.clamp(0.0f, 0.999f))
-					.min(255.0f));
-			const g = to!ubyte((255.999f * linear_to_gamma(c.g)
-					.clamp(0.0f, 0.999f))
-					.min(255.0f));
-			const b = to!ubyte((255.999f * linear_to_gamma(c.b)
-					.clamp(0.0f, 0.999f))
-					.min(255.0f));
+			const r = linear_to_gamma(c.r);
+			const g = linear_to_gamma(c.g);
+			const b = linear_to_gamma(c.b);
+
+			const rbyte = to!ubyte(min(255,255.999 * intensity.clamp(r)));
+			const gbyte = to!ubyte(min(255,255.999 * intensity.clamp(g)));
+			const bbyte = to!ubyte(min(255,255.999 * intensity.clamp(b)));
 
 			immutable i = y * row_size + x * 3;
-			pixel_data[i + 0] = b;
-			pixel_data[i + 1] = g;
-			pixel_data[i + 2] = r;
+			pixel_data[i + 0] = bbyte;
+			pixel_data[i + 1] = gbyte;
+			pixel_data[i + 2] = rbyte;
 		}
 
 		// padding
@@ -187,7 +177,7 @@ void write_bmp(string filename, Colour[][] pixels) {
 	}
 
 	// Write to file
-	auto bmp = header ~ dib ~ pixel_data;
+	const bmp = header ~ dib ~ pixel_data;
 	write(filename, bmp);
 }
 
@@ -406,18 +396,10 @@ struct Interval {
 		this.max = max;
 	}
 
-	float size() const {
-		return max - min;
-	}
-
-	bool contains(float x) const {
-		return min <= x && x <= max;
-	}
-
-	bool surrounds(float x) const {
-		return min < x && x < max;
-	}
-
+	auto size() const => max - min;
+	auto contains(float x) const => min <= x && x <= max;
+	auto surrounds(float x) const => min < x && x < max;
+	
 	float clamp(float x) const {
 		if (x < min)
 			return min;
@@ -497,7 +479,7 @@ struct Camera {
 
 		const offset = sample_square();
 		const pixel_sample = PIXEL00_LOC + ((i + offset.x) * PIXEL_DELTA_U) + (
-				(j + offset.y) * PIXEL_DELTA_V);
+			(j + offset.y) * PIXEL_DELTA_V);
 
 		const ray_origin = (DEFOCUS_ANGLE <= 0) ? CENTER : defocus_disk_sample();
 		const ray_direction = pixel_sample - ray_origin;
