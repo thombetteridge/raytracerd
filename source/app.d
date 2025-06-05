@@ -428,7 +428,7 @@ struct Interval {
 }
 
 float degrees_to_radians(float degrees) {
-	enum pi_180 = PI / 180.0;
+	enum pi_180 = to!float(PI / 180.0f);
 	return degrees * pi_180;
 }
 
